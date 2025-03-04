@@ -1,0 +1,942 @@
+---
+title: "Assignment 1"
+author: "Group 26: Aoming Sun,Siran Shen,Tong Pei"
+output:
+  pdf_document:
+    extra_dependencies: ["float", "caption","booktabs"]
+    fig_caption: true
+    keep_tex: yes
+geometry: "left=2cm,right=2cm,top=1.5cm,bottom=1.5cm"
+fontsize: 6pt
+highlight: tango
+header-includes:
+    \usepackage{float} 
+    \floatplacement{figure}{H}  
+    \floatplacement{table}{H} 
+---
+
+
+
+_In order not to be bothered with rounding the numbers, set 
+`options(digits=3)` `r options(digits=3)`._
+
+
+## Exercise 1
+**a)**
+```{r include=FALSE}
+library(patchwork)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(broom)
+library(kableExtra)
+```
+To test the normality of the dataset we have plotted 2 qqplot for both before and after the replacement by margarine.
+```{r Assignment_1a, echo=FALSE, fig.cap="Q-Q plots of cholesterol levels before and after the diet.", fig.pos="H", fig.height=2.5, fig.width=5, fig.align='center'}
+
+data <- read.table(file = "cholesterol.txt",header=TRUE)
+col_b <- data$Before
+col_a <- data$After8weeks
+
+plot_before <- ggplot(data, aes(sample = Before)) +
+  stat_qq(color = "blue") +
+  stat_qq_line(color = "red") +
+  labs(title = "Before Diet", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()
+
+
+plot_after <- ggplot(data, aes(sample = After8weeks)) +
+  stat_qq(color = "darkgreen") +
+  stat_qq_line(color = "red") +
+  labs(title = "After 8 Weeks", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()
+
+
+combined_plot <- plot_before + plot_after
+print(combined_plot)
+
+```
+
+
+Figure1 showed that the data both before and after the experiment is distributed normally.
+
+Since data are normally distributed we used pearson correlation coefficient.
+
+```{r,fig.pos="H"}
+result_cor <- cor.test(col_b, col_a, method = "pearson")
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!ht"}
+tidy_result_cor <- broom::tidy(result_cor)
+
+
+knitr::kable(tidy_result_cor,
+             caption = "Pearson correlation of before and after diet.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+
+```
+With this pretty low p value and the high correlation coefficient 
+we can say the data of the columns are highly correlated. 
+
+**b)**
+First of all, we believe the dataset is a paired dataset because the data of the same row is 
+from the same participant before and after the experiment. 
+Therefore Mann Whitney test is not applicable since it's not for paired data test 
+and permutation test is applicable.
+
+T-test: Since the data is normal and we are expecting a decline after the experiment, 
+we can use the mean value of the cholesterol level as the static. Therefore we choose the t test.
+```{r}
+result_tt <- t.test(col_b, col_a, paired = TRUE, alternative = "greater")
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_result_tt <- broom::tidy(result_tt)
+
+
+knitr::kable(tidy_result_tt,
+             caption = "T-test to to verify whether the diet with low fat margarine has an eﬀect.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+The data were paired, so the paired t-test and Wilcoxon signed rank test were applied.
+```{r}
+# Wilcoxon
+wilcox_test <- wilcox.test(data$Before, data$After8weeks, paired = TRUE)
+```
+```{r echo=FALSE}
+tidy_wilcox_test <- broom::tidy(wilcox_test)
+
+
+knitr::kable(tidy_wilcox_test,
+             caption = "Wilcoxon test to to verify whether the diet with low fat margarine has an eﬀect.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+The P value of both tests are very small so we confidently reject the H0 hypothesis with 95\% confidence 
+to say the drop of cholesterol average level is at least 0.556.
+
+
+Permutation test: Permutation test can directly give the significance of the change in the data.
+```{r include=FALSE}
+library(perm)
+```
+
+```{r}
+permTS(col_b,col_a, alternative = "greater", method = "exact.mc",control = permControl(nmc = 10000))
+```
+```{r}
+mystat = function(x, y) {
+  mean(x - y)
+}
+B = 10000
+tstar = numeric(B)
+pl = 0
+pr = 0
+for (i in 1: B) {
+  pairstar = t(apply(cbind(col_b, col_a), 1, sample))
+  # print(pairstar)
+  tstar[i] = mystat(pairstar[, 1], pairstar[, 2])
+}
+myt = mystat(col_b, col_a)
+print(sum(tstar > myt))
+pl = sum(tstar < myt) / B
+pr = sum(tstar > myt) / B
+p = 2 * min(pl, pr)
+print(p)
+```
+After the random swap of the data before and after the experiment, 
+the mean difference never reached 0.62 again thus p = 0 and we can reject the H0 confidently .
+
+Mann-Whitney test is not applicable as it applies to independent samples.
+
+
+**c)**
+To find the mean value of the column after we use the t-test because it is a normal distribution.
+```{r, fig.height=3, fig.width=6}
+#c1
+col_a_tt <- t.test(col_a, conf.level = 0.97)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_col_a_tt <- broom::tidy(col_a_tt)
+
+
+knitr::kable(tidy_col_a_tt,
+             caption = "T-test of After8weeks data .",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+With 97\% confidence, we can say the mean value of the column after is between (5.164, 6.394)
+
+Bootstrap test:
+```{r, fig.height=3, fig.width=6}
+B = 1000
+Tstar = numeric(B)
+T1 = mean(col_a)
+for (i in 1: B) {
+  Xstar = sample(col_a, replace = TRUE)
+  Tstar[i] = mean(Xstar) 
+}
+Tstar15 = quantile(Tstar, 0.015)
+Tstar985 = quantile(Tstar, 0.985)
+sum(Tstar < Tstar15)
+c(2 * T1 - Tstar985, 2 * T1 - Tstar15)
+```
+With 97% confidence, we can say the mean value is between 5.212 and 6.378
+
+**d)**
+We use bootstrap to test the distribution of the sample. we created a list of theta with step 0.01 and test whether it fits the uniform distribution of [3,theta] or not.
+```{r, fig.height=3, fig.width=6}
+n = length(col_a)
+t = max(col_a)
+# Function to perform the bootstrap test for a given theta
+bootstrap_test <- function(n, t, theta, num_iterations = 1000) {
+  tstar = numeric(num_iterations)
+  for (i in 1:num_iterations) {
+    xstar = runif(n, min = 3, max = theta)
+    tstar[i] = max(xstar)
+  }
+  pl = sum(tstar < t) / num_iterations
+  pr = sum(tstar > t) / num_iterations
+  p = 2 * min(pl, pr)
+}
+# Range of theta values to test
+theta_values <- seq(3, 12, by = 0.01)  # Adjust the step as needed for precision
+# Perform the bootstrap test for each theta
+results <- sapply(theta_values, function(theta) bootstrap_test(n, t, theta))
+# Find theta values where the proportion of exceeding bootstrap maxima is > alpha (e.g., 0.05)
+alpha <- 0.05 # set significance level
+theta_not_rejected <- theta_values[results > alpha]
+```
+```{r echo=FALSE, fig.height=2.5, fig.width=5}
+#Plot
+plot(theta_values, results, type="l", xlab="Theta", ylab="Proportion Exceeding Observed Max", main = "Bootstrap Test Results")
+abline(h=alpha, col="red") #Add horizontal line for alpha level
+```
+
+As the figure shows above, we can reject the H0 once theta reaches 7.7.  
+
+
+We believe Kolmogorov-Smirnov can be applied since we have split the theta into discrete value list, for every theta value KS test is applicable.
+```{r, fig.height=3, fig.width=6}
+n = length(col_a)
+t = max(col_a)
+# Range of theta values to test
+theta_values <- seq(3, 12, by = 0.1)   
+# # Perform the KS test for each theta
+results <- sapply(theta_values, function(theta) ks.test(col_a, runif(n, min = 3, max = theta))$p.value)
+alpha <- 0.05 # set significance level
+theta_not_rejected <- theta_values[results > alpha]
+```
+```{r echo=FALSE, fig.height=2.5, fig.width=5}
+#Plot
+plot(theta_values, results, type="l", xlab="Theta", ylab="Proportion Exceeding Observed Max", main = "KS-test Results")
+abline(h=alpha, col="red") #Add horizontal line for alpha level
+```
+
+This graph showed the KS the p value of KS test. p value is basically rejected when theta is greater than 6.7. After that some low P- value is caused by the stochastic fluctuation since we are measuring the difference of maximum value between our sample and the uniform distribution.
+
+
+**e)**
+To check the median value, we chose the \textbf{binomial test}. if the median is smaller than 6 the number of samples below 6 should be more than 50\%. Here we set median $\geq$ 6 as H0.
+```{r, fig.height=3, fig.width=6}
+binom.test(sum(col_a < 6), length(col_a), p = 0.5, alternative = "less")
+```
+it shows that the CI of samples less than 6 is between 0 and 80.1\%. With the P value 0.881, we can not reject the H0. Thus we can not say the median is smaller than 6.
+Similarly, we can also use \textbf{binomial test} to test the number of samples smaller than 4.5. However here we set samples < 4.5 more than 25\% as H0.
+The output is :
+```{r, fig.height=3, fig.width=6}
+binom.test(sum(col_a < 4.5), length(col_a), p = 0.25, alternative = "less")
+```
+Given the output, we can not reject the H0. we can only 95\% confidently say the max portion below 4.5 is 0.377
+
+## Exercise 2 
+**a)**
+Checking if there is interaction between two factors:
+```{r, fig.height=6, fig.width=6}
+crops <- read.table("crops.txt", header = TRUE)
+crops$County = as.factor(crops$County)
+crops$Related = as.factor(crops$Related)
+cropsaov_cr1 = lm(Crops ~ County * Related, data = crops)
+cropsaov_cr1_anv = anova(cropsaov_cr1)
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_cr1_anv <- broom::tidy(cropsaov_cr1_anv)
+
+
+knitr::kable(tidy_cropsaov_cr1_anv,
+             caption = "ANOVA test of if County and Related influence the crop.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+The p value of County:Related is 0.8792 > 0.05, so we do not have enough evidence to reject H0,
+which means there is no interaction between County and Related.
+
+Checking whether the 2 factors affect the crops:
+```{r, fig.height=6, fig.width=6}
+cropsaov_cr2 = lm(Crops ~ Related + County, data = crops)
+cropsaov_cr2_drop <-drop1(cropsaov_cr2, test = "F")
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_cr2_drop <- broom::tidy(cropsaov_cr2_drop)
+
+
+knitr::kable(tidy_cropsaov_cr2_drop,
+             caption = "Results of drop1 test of model with Related and County.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+The p value of County is 0.4518 > 0.05, so we do not have enough evidence to reject H0, 
+which means County does not have a significant effect on the crops.
+
+The p value of Related is 0.5126 > 0.05, so we do not have enough evidence to reject H0, 
+which means Related does not have a significant effect on the crops.
+
+Checking model assumptions:
+```{r Assignment_2a, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model cr1.", fig.pos="H",fig.height=2.5, fig.width=5}
+
+model_data <- augment(cropsaov_cr1)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+
+```
+The residuals look normal, perhaps a slight curve in the qq-plot.
+The plot of the fitted values against the residuals 
+shows no pattern, so the assumption of normality is true.
+
+Using the chosen model, estimate the crops 
+for a typical farm in County 3 for which landlord and tenant are not related:
+```{r, fig.height=6, fig.width=6}
+newdata1 <- data.frame(County = factor(3), Related = factor("no"))
+print(newdata1)
+prediction <- predict(cropsaov_cr2, newdata1)
+print(prediction)
+```
+Since there is no interaction between County and Related, 
+we choose the model "cropsaov_cr2" to estimate the result. 
+The predicted value is 7760.3 = Intercept (6800.6) + the Estimate of County3 (959.7).
+Since both County and Related do not affect crops significantly, the predicted value 
+is not very accurate.
+
+**b)**
+Whether the influence of Size on Crops is similar for all three counties:
+
+```{r, fig.height=3, fig.width=6}
+cropsaov_cs = lm(Crops ~ Related + County * Size, data = crops)
+cropsaov_cs_anv <-anova(cropsaov_cs)
+cropsaov_cs_smr <-summary(cropsaov_cs)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_cs_anv <- broom::tidy(cropsaov_cs_anv)
+tidy_cropsaov_cs_smr <- broom::tidy(cropsaov_cs_smr)
+
+knitr::kable(tidy_cropsaov_cs_anv,
+             caption = "Results of anova test of model with Related + County * Size.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+
+knitr::kable(tidy_cropsaov_cs_smr,
+             caption = "Summary of model with Related + County * Size.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+
+```
+
+The p-value of County:Size is 0.01192 < 0.05, so we have enough evidence to rejct H0, 
+which means there is an interaction between County and Size. 
+Furthermore, we take a look at the interaction between each County and Size, 
+we can see that County3:Size = 0.17676 > 0.05, which means there is no difference 
+between the relation of County1:Size and County3:Size
+However, County2:Size = 0.00323 < 0.05, which means there is a difference 
+between the relation of County1:Size and County2:Size. 
+So the interaction between County and Size does exist.
+
+
+Checking model assumptions:
+
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model cs.",  fig.pos="H", fig.height=2.5, fig.width=5, message=FALSE, warning=FALSE}
+
+model_data <- augment(cropsaov_cs)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+
+```
+
+The residuals look normal, perhaps a slight curve in the qq-plot.
+The plot of the fitted values against the residuals 
+shows no pattern, so the assumption of normality can be trust.
+
+whether the influence of Size depends on the relation of landlord and tenant of the farm:
+```{r, fig.height=6, fig.width=6}
+cropsaov_rs = lm(Crops ~ County + Related * Size, data = crops)
+cropsaov_rs_anv <-anova(cropsaov_rs)
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_rs_anv <- broom::tidy(cropsaov_rs_anv)
+
+
+knitr::kable(tidy_cropsaov_rs_anv,
+             caption = "Results of anova test of model with Related and County.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+The p-value of Related:Size is 0.29589 > 0.05, we do not have enough evidence to rejct H0,
+so there is no interaction between Related and Size.
+
+Checking model assumptions:
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model rs.",  fig.pos="H",fig.height=2.5, fig.width=5, message=FALSE, warning=FALSE}
+
+model_data <- augment(cropsaov_rs)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+
+```
+
+The QQ-normal plot shows normality is doubtful. Also the spread in the residuals seems 
+to be bigger for smaller fitted values. Some data-points also seem extreme. 
+So the model also cannot be trusted.
+
+Overall, based on our analysis above, we should choose the model 'cropsaov_cs'with Related + County * Size.
+
+**c)**
+For the resulting model from b), investigate how County, Related and Size influence Crops.
+
+```{r, fig.height=6, fig.width=6}
+cropsaov_cs = lm(Crops ~ Related + County * Size, data = crops)
+
+#test: Related
+cropsaov_cs2 = lm(Crops ~ County * Size, data = crops)
+cropsaov_cs2_anv <-anova(cropsaov_cs2, cropsaov_cs)
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_cs2_anv <- broom::tidy(cropsaov_cs2_anv)
+
+
+knitr::kable(tidy_cropsaov_cs2_anv,
+             caption = "Results of anova test of model with Size and County.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+The p-value is 0.4988 > 0.05, which means there is no significant difference between 2 models,
+so factor Related does not affect crops.
+
+Checking model assumptions:
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model cs2.",, fig.pos="H", fig.height=2, fig.width=4}
+
+model_data <- augment(cropsaov_cs2)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+```
+The residuals look normal, perhaps a slight curve in the qq-plot.
+The plot of the fitted values against the residuals 
+shows no pattern, so the assumption of normality is true.
+
+```{r, fig.height=6, fig.width=6}
+#test: County
+cropsaov_rs2 = lm(Crops ~ Related + Size + County:Size, data = crops)
+cropsaov_rs2_anv <- anova(cropsaov_rs2, cropsaov_cs)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_rs2 <- broom::tidy(cropsaov_rs2)
+
+
+knitr::kable(tidy_cropsaov_rs2,
+             caption = "Results of anova test of model with Size and County and the interaction country and size.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model rs2.", fig.pos="H",fig.height=2, fig.width=4, message=FALSE, warning=FALSE}
+
+model_data <- augment(cropsaov_rs2)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+```
+
+
+The p-value is 0.02551 < 0.05, which means there is significant difference between 2 models,
+so factor County itself does affect crops significantly. Also from b), we know that there is a relation 
+between County and Size.
+
+Checking model assumptions:
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model rs2.", fig.pos="H", fig.height=2, fig.width=4, message=FALSE, warning=FALSE}
+
+model_data <- augment(cropsaov_rs2)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+```
+The residuals look normal, perhaps a slight curve in the qq-plot.
+The plot of the fitted values against the residuals 
+shows no pattern, so the assumption of normality is true.
+
+```{r, fig.height=6, fig.width=6}
+#test: Size
+cropsaov_crs = lm(Crops ~ Related + County + County:Size, data = crops)
+cropsaov_crs_anv <- anova(cropsaov_crs, cropsaov_cs)
+
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_cropsaov_crs_anv <- broom::tidy(cropsaov_crs_anv)
+
+
+knitr::kable(tidy_cropsaov_crs_anv,
+             caption = "Results of anova test of model with Related and County and the interaction country and size.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+
+The p-value is 0 (which is significant small) < 0.05, which means there is significant difference between 2 models,
+so factor Size itself does affect crops significantly. Also from b), we know that there is a relation 
+between County and Size.
+
+Checking model assumptions:
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model crs.", fig.pos="H", fig.height=2.5, fig.width=5, message=FALSE, warning=FALSE}
+
+model_data <- augment(cropsaov_crs)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7) +
+  stat_qq_line(color = "red", linewidth = 1) +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+```
+The residuals look normal, perhaps a slight curve in the qq-plot.
+The plot of the fitted values against the residuals 
+shows no pattern, so the assumption of normality is true.
+
+**d)**
+Using the resulting model from b), predict the crops for a farm from County 2 of size 165, 
+with related landlord and tenant. Estimate also the error variance.
+```{r, fig.height=6, fig.width=6}
+newdata2 <- data.frame(County = factor(2), Related = factor("yes"), Size = 165)
+print(newdata2)
+prediction <- predict(cropsaov_cs, newdata2)
+prediction <- predict(cropsaov_cs, newdata2)
+print(prediction)
+
+```
+So, the crops for a farm from County 2 of size 165, with related landlord and tenant should be 6141.
+Table 7 shows the estimation of  error variance.
+
+## Exercise 3
+**a)**
+```{r, fig.height=3, fig.width=6}
+# Define the blocks and treatments
+blocks <- 1:6
+plots_per_block = 4
+if_treated <- c(1, 1, 0, 0)
+# Create a function to randomize treatments for a single block
+randomize_block <- function() {
+  sample(if_treated)
+}
+# Apply randomization to each block
+randomized_design <- data.frame(
+  blocks = rep(blocks, each = 4),  # 4 plots per block
+  plot = 1:plots_per_block,
+  N = unlist(lapply(blocks, function(x) randomize_block())),
+  P = unlist(lapply(blocks, function(x) randomize_block())),
+  K = unlist(lapply(blocks, function(x) randomize_block()))
+)
+```
+
+**b)**
+
+```{r include=FALSE}
+library(MASS)
+data(npk)
+library(dplyr)
+library(ggplot2)
+
+```
+
+```{r, fig.height=2.5, fig.width=5}
+
+avg_yield <- npk %>%
+  group_by(block, N) %>%
+  summarise(mean_yield = mean(yield), .groups = 'drop')
+
+ggplot(avg_yield, aes(x = block, y = mean_yield, color = N, group = N)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Average Yield by Block and Nitrogen Treatment",
+       x = "Block", y = "Average Yield")
+```
+
+
+The plot shows that yields with nitrogen (N=1) are generally higher across all blocks, indicating a positive effect of nitrogen. However, variability exists between blocks,with the role of N not being as pronounced in block 5, whereas it was very significant in blocks 1 and 4
+
+
+**c)**
+```{r, fig.height=3, fig.width=6}
+block = as.factor(npk$block)
+N = as.factor(npk$N)
+P = as.factor(npk$P)
+K = as.factor(npk$K)
+npkaov_bn = lm(yield ~ block * N, data = npk)
+npkaov_bn_anv <-anova(npkaov_bn)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_npkaov_bn_anv <- broom::tidy(npkaov_bn_anv)
+
+
+knitr::kable(tidy_npkaov_bn_anv,
+             caption = "Results of anova test of model block*N.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+As the result shown, the interaction block:N is insignificant, suggesting no block-specific nitrogen effects.
+Then The model can be simplified as:
+```{r, fig.height=3, fig.width=6}
+npkaov_bn = lm(yield ~ block + N, data = npk)
+npkaov_bn_anv <- anova(npkaov_bn)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_npkaov_bn_anv <- broom::tidy(npkaov_bn_anv)
+
+
+knitr::kable(tidy_npkaov_bn_anv,
+             caption = "Results of anova test of model block+N.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+Base in the result of anova, Block effect is significant, justifying its inclusion to control for variability between blocks.
+Meanwhile,N effect is significant, indicating nitrogen boosts yield.
+
+The let's check the model assumptions:
+
+```{r, echo=FALSE, fig.align='center', fig.cap="Q-Q plot of residuals and residuals fitted plot of model crs.",  fig.pos="H", fig.height=2.5, fig.width=5, message=FALSE, warning=FALSE}
+
+model_data <- augment(npkaov_bn)
+
+qq_plot <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(color = "blue", alpha = 0.7)  +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+resid_fit_plot <- ggplot(model_data, aes(x = .fitted, y = .resid)) +
+  geom_point(color = "darkgreen", alpha = 0.7) +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+
+
+combined_plot <- qq_plot + resid_fit_plot
+print(combined_plot)
+```
+
+The QQ-normal plot is slight curved but overall normal. Also the residuals are evenly distributed above and below the red line
+
+So, including block is sensible because it explains significant variability, improving model accuracy. Ignoring blocks could lead to biased estimates of the nitrogen effect.
+
+
+The Friedman test cannot be used in this situation. The data here is not a repeated measures design: 
+The Friedman test can only be used when the same subjects are measured under different conditions.  
+Each block here has different plots, so we are not measuring the same plot across different fertilizer combinations.
+
+**d)**
+
+```{r, fig.height=3, fig.width=6}
+# Basic model without interactions, main effects only
+model0 <- lm(yield ~ block + N + P + K , data = npk)
+# Models with one block interaction term
+model1 <- lm(yield ~ block + N + P + K + block:N, data = npk)
+model2 <- lm(yield ~ block + N + P + K + block:P, data = npk)
+model3 <- lm(yield ~ block + N + P + K + block:K, data = npk)
+
+# Check significance of interactions
+anv1 <- anova(model0,model1)
+anv2 <- anova(model0,model2) 
+anv3 <- anova(model0,model3) 
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_anv1 <- broom::tidy(anv1)
+tidy_anv2 <- broom::tidy(anv2)
+tidy_anv3 <- broom::tidy(anv3)
+
+knitr::kable(tidy_anv1,
+             caption = "Anova test of base model and models with one block interaction term.",
+             float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+knitr::kable(tidy_anv2,
+             float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+knitr::kable(tidy_anv3,
+             float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+The results show that all interactions are not significant.Then we move on to examine the significance of each main effect:
+
+```{r, fig.height=3, fig.width=6}
+model0_drop <- drop1(model0,test="F")
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_model0_drop <- broom::tidy(model0_drop)
+
+
+knitr::kable(tidy_model0_drop,
+             caption = "Results of drop test of model block+N+K+P.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+The anova and AIC analysis showed that the main effects block and N,K contributed significantly to the model, while P was  insignificant.
+Thus, our final model is *yield=block + N + K* :
+```{r, fig.height=3, fig.width=6}
+model_final <- lm(yield ~ block + N + K , data = npk)
+model_final_anv <-anova(model_final)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_model_final_anv <- broom::tidy(model_final_anv)
+
+
+knitr::kable(tidy_model_final_anv,
+             caption = "Results of anova test of model block+N+K.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+All main effect contributions in this model are significant and increase in significance over all of the above models.
+
+
+
+
+**e)**
+```{r include=FALSE}
+library(emmeans)
+```
+
+```{r, fig.height=3, fig.width=6}
+model_final_N_emm <- emmeans(model_final, specs = ~ N)  
+model_final_K_emm <- emmeans(model_final, specs = ~ K)  
+model_final_b_emm <- emmeans(model_final, specs = ~ block)  
+```
+
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_model_final_N_emm <- broom::tidy(model_final_N_emm)
+tidy_model_final_K_emm <- broom::tidy(model_final_K_emm)
+tidy_model_final_b_emm <- broom::tidy(model_final_b_emm)
+
+knitr::kable(tidy_model_final_N_emm,
+             caption = "Compute estimated marginal means (EMMs) for N,K,block separately.",
+             float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+knitr::kable(tidy_model_final_K_emm,
+             float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+knitr::kable(tidy_model_final_b_emm,
+             float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+
+According to the results, it can be concluded that applying N will make the yield rise and applying P will make the yield fall, and different blocks have different base yields, from smallest to largest are: block4,block5,block1,block6,block2,block3.
+The combination leading to the maximum yield should be: in block3, apply nitrogen (N=1) and not apply potassium (K=0).P is not included in the final model so it is not discussed.
+
+**f)**
+```{r include=FALSE}
+library(lme4)
+```
+
+```{r, fig.height=3, fig.width=6}
+mixed_model <- lmer(yield ~ N +K +(1|block), data = npk,REML=FALSE)
+mixed_model_K <- lmer(yield ~ K +(1|block), data = npk,REML=FALSE)
+mixed_anv <- anova(mixed_model_K,mixed_model)
+```
+```{r, echo=FALSE, fig.env="figure", fig.pos="!htb"}
+tidy_mixed_anv <- broom::tidy(mixed_anv)
+
+
+knitr::kable(tidy_mixed_anv,
+             caption = "ANOVA for mixed eﬀects model with and without N.",float=FALSE,
+             format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down")) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "5cm")
+```
+Through test of the mixed-effects model, the addition of N significantly improved the model's ability to explain yield (p = 0.001), and the model complexity was reasonably controlled (AIC/BIC decreased).Thus we can conclude that nitrogen ( N ) has a significant effect on yield.
+In contrast to the results of fixed eﬀects model (Table 17), the p-value of N in the anova analysis of the fixed effects model is 0.003, again significant but not as significant as the mixed effects model. 
+So we can get the conclusion:Nitrogen significantly increases yield, validated by both fixed and mixed models.
