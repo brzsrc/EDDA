@@ -9,17 +9,167 @@ highlight: tango
 
 ## Exercise 1
 ```{r, fig.height=2, fig.width=4}
+library(ggplot2)
+
+#a)
+
 titanic = read.table("titanic.txt", header=TRUE)
 titanic
 
+# Load data and remove missing age entries 
+titanic <- read.delim("titanic.txt")
+titanic <- titanic[!is.na(titanic$Age), ]  # Drop rows with missing age
+
+titanic$PClass <- factor(titanic$PClass)
+titanic$Sex <- factor(titanic$Sex)
+
+ggplot(titanic, aes(x = PClass, fill = factor(Survived))) + 
+  geom_bar(position = "fill") + 
+  facet_wrap(~ Sex) + 
+  labs(title = "Survival Rate by Class & Gender", 
+       x = "Passenger Class", 
+       fill = "Survived (0=No, 1=Yes)")
+
+# 2. Age distribution (simple boxplot)
+ggplot(titanic, aes(x = factor(Survived), y = Age)) + 
+  geom_boxplot() + 
+  labs(x = "Survived (0=No, 1=Yes)", 
+       title = "Age Distribution by Survival")
+
+
+# Fit logistic regression (no interaction)
+model <- glm(Survived ~ PClass + Age + Sex, 
+             data = titanic, 
+             family = binomial)
+
+# Essential outputs
+cat(" Model Summary ")
+summary(model)  # Show coefficients and p-values
+
+cat(" Odds Ratios ")
+odds_ratio <- exp(coef(model))  
+print(odds_ratio)
+```
+Given the OR as above, we can conclude that comparing to 1st class, the probability of survival of the same person in 2nd class will be 27% and 8% in third class. Comparing being a female, a man can only survive 7%. And every year older of a passenger will decrease around 4% survival probability.
+
+```{r, fig.height=2, fig.width=4}
+#b)
+# main model
+model_main <- glm(Survived ~ PClass + Age + Sex, 
+                 data = titanic, family = binomial)
+
+# model with age and class
+model_age_class <- glm(Survived ~ PClass * Age + Sex, 
+                      data = titanic, family = binomial)
+
+# model with age and sexuality
+model_age_sex <- glm(Survived ~ PClass + Age * Sex, 
+                    data = titanic, family = binomial)
+
+# LRT
+cat("---- Testing PClass*Age Interaction ----\n")
+anova(model_main, model_age_class, test = "LRT")  # p>0.05则不显著
+
+cat("\n---- Testing Age*Sex Interaction ----\n")
+anova(model_main, model_age_sex, test = "LRT")    # p<0.05则显著
+
 
 ```
+Here we get the output of the LRT. we can see the p value of LRT in Age * Sex is much smaller than 0.05 while Class * Age is a bit more than 0.05. Which means the Age * Sex model brought more significant improvements. And we are choosing this model (model_age_sex) because it gives lower Residual Deviance.
 
+```{r, fig.height=2, fig.width=4}
+# let Age * Sex be the new model
+final_model <- model_age_sex
+
+
+# prediction of 55
+
+# generate new data
+new_data <- expand.grid(
+  PClass = factor(c("1st", "2nd", "3rd"), levels = c("1st", "2nd", "3rd")),
+  Sex = factor(c("male", "female"), levels = c("male", "female")),
+  Age = 55  # set all ages 55
+)
+
+# predict
+new_data$Survival_Prob <- predict(final_model, newdata = new_data, 
+                                 type = "response")
+
+print(new_data)
+```
+In the table above we can see the same trend, woman are more likely to survive, higher class are more likely to servive.
+
+
+```{r, fig.height=2, fig.width=4}
+```
+#c) When we use the model_age_sex as the prediction model we can measure the quality of the prediction by AUC of ROC.
+
+ROC is a curve where x axis is False Positive Rate and Y is True Positive Rate. The Area under curve of ROC is between 0 to 1. the bigger value of AUC meaning the model performs better. 0.5 is the standard line of random guessing.
+
+In practice we can break the dataset into train and test set where train take about 80%. Once the model is trained we can use the model to predict the test set and apply ROC curve to evaluate the quality of the trained model. 
+
+Sometimes random selection of train or test set may lead to imbalance, thus we can do n-fold. break the whole data set into 10 random equal size small sets. Now we take random 2 set as test set the rest as the training set. We repeat this step until all the small set have been selected as test set. Then we have a list of trained model and we can find the best one. It's less likely get affected by data imbalance.
+
+```{r, fig.height=2, fig.width=4}
+
+
+#d)
+
+# create contingency table of class 
+table_pclass <- table(titanic_clean$PClass, titanic_clean$Survived)
+print("Contingency Table (PClass vs Survived):")
+print(table_pclass)
+
+# Do the test
+chi_pclass <- chisq.test(table_pclass)
+
+# check the expected frequency
+cat("\nExpected Counts (PClass):\n")
+print(chi_pclass$expected)
+# check the observed frequency
+cat("\nChi-squared Test for PClass:\n")
+print(chi_pclass)
+
+
+# create contingency table of sex
+table_sex <- table(titanic_clean$Sex, titanic_clean$Survived)
+print("\nContingency Table (Sex vs Survived):")
+print(table_sex)
+
+# Do the test
+chi_sex <- chisq.test(table_sex)
+
+# check the expected frequency
+cat("\nExpected Counts (Sex):\n")
+print(chi_sex$expected)
+# check the observed frequency
+cat("\nChi-squared Test for Sex:\n")
+print(chi_sex)
+
+
+```
+Given the tests above we can say that both the class and sex are significantly related to survival rates. 
+
+
+
+```{r, fig.height=2, fig.width=4}
+```
+#e) The method in d is not wrong but only suitable for checking the dependence of 2 factors. While the LRT can also compare the interaction between 2 factors. 
+
+The advantage of contingency table test is simple can be manually calculated by counting the frequency. however the disadvantage is that it can only focus on 2 factors each test not more and not the interaction of factors. 
+
+The advantage of LRT can test more complicate dependence. However, it surely takes more steps and computing power. 
+
+If we have multiple factor pairs need to compare contingency table test is more efficient.
+
+If we need to test the complex dependence between 2 factors, LRT is better.
  
- 
+```{r, fig.height=2, fig.width=4}
+
+
 
 ## Exercise 2
-
+```
 **a)**
 ```{r, fig.height=2, fig.width=4}
 coups = read.table("coups.txt", header=TRUE)
