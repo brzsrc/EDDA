@@ -248,7 +248,7 @@ No Civil Rights (pollib0 - baseline): Predicted 2.9 coups, which has the highest
 
 Limited Rights (pollib1): 1.77 coups — around 38% ((2.9 - 1.77) / 2.9) reduction compared with pollib0, but since it has p value = 0.2976, it is not significant on coups.
 
-Full Rights (pollib2): 0.95 coups — around 67% ((2.9 - -.96) / 2.9) reduction compared with pollib0. It has p value = 0.0155, highlighting it has significant effect on coups.
+Full Rights (pollib2): 0.95 coups — around 67% ((2.9 - 0.96) / 2.9) reduction compared with pollib0. It has p value = 0.0155, highlighting it has significant effect on coups.
 
 
 ## Exercise 3
