@@ -114,7 +114,7 @@ Sometimes random selection of train or test set may lead to imbalance, thus we c
 #d)
 
 # create contingency table of class 
-table_pclass <- table(titanic_clean$PClass, titanic_clean$Survived)
+table_pclass <- table(titanic$PClass, titanic$Survived)
 print("Contingency Table (PClass vs Survived):")
 print(table_pclass)
 
@@ -130,7 +130,7 @@ print(chi_pclass)
 
 
 # create contingency table of sex
-table_sex <- table(titanic_clean$Sex, titanic_clean$Survived)
+table_sex <- table(titanic$Sex, titanic$Survived)
 print("\nContingency Table (Sex vs Survived):")
 print(table_sex)
 
