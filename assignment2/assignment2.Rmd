@@ -68,10 +68,10 @@ model_age_sex <- glm(Survived ~ PClass + Age * Sex,
 
 # LRT
 cat("---- Testing PClass*Age Interaction ----\n")
-anova(model_main, model_age_class, test = "LRT")  # p>0.05则不显著
+anova(model_main, model_age_class, test = "LRT") 
 
 cat("\n---- Testing Age*Sex Interaction ----\n")
-anova(model_main, model_age_sex, test = "LRT")    # p<0.05则显著
+anova(model_main, model_age_sex, test = "LRT")  
 
 
 ```
@@ -100,8 +100,6 @@ print(new_data)
 In the table above we can see the same trend, woman are more likely to survive, higher class are more likely to servive.
 
 
-```{r, fig.height=2, fig.width=4}
-```
 #c) When we use the model_age_sex as the prediction model we can measure the quality of the prediction by AUC of ROC.
 
 ROC is a curve where x axis is False Positive Rate and Y is True Positive Rate. The Area under curve of ROC is between 0 to 1. the bigger value of AUC meaning the model performs better. 0.5 is the standard line of random guessing.
@@ -151,9 +149,6 @@ print(chi_sex)
 Given the tests above we can say that both the class and sex are significantly related to survival rates. 
 
 
-
-```{r, fig.height=2, fig.width=4}
-```
 #e) The method in d is not wrong but only suitable for checking the dependence of 2 factors. While the LRT can also compare the interaction between 2 factors. 
 
 The advantage of contingency table test is simple can be manually calculated by counting the frequency. however the disadvantage is that it can only focus on 2 factors each test not more and not the interaction of factors. 
@@ -164,19 +159,19 @@ If we have multiple factor pairs need to compare contingency table test is more 
 
 If we need to test the complex dependence between 2 factors, LRT is better.
  
-```{r, fig.height=2, fig.width=4}
-
-
 
 ## Exercise 2
-```
 **a)**
-```{r, fig.height=2, fig.width=4}
-coups = read.table("coups.txt", header=TRUE)
+```{r, fig.height=4, fig.width=4}
+coups = read.table("coups.txt", header = TRUE)
 coups$pollib = factor(coups$pollib)
 coupsglm = glm(miltcoup ~ oligarchy + pollib + parties + pctvote + popn + size + numelec + numregim, family = poisson, data = coups)
 summary(coupsglm)
 ```
+Since pollib has 3 levels, we treat this variable as a factor. From the result, we can see variables: oligarchy, 
+
+
+pollib2 and parties have p value < 0.05 which means they are significant and have effect on miltcoup. All other variables have p values > 0.05, which means they are insignificant and have no effect on miltcoup. Furthermore, all together the variables have 
 
 
 **b)**
@@ -205,7 +200,6 @@ summary(glm(miltcoup ~ oligarchy + pollib + parties, family = poisson, data = co
 
 **c)** 
 ```{r, fig.height=2, fig.width=4}
-coups$pollib = factor(coups$pollib)
 coupsglm2 = glm(miltcoup ~ pollib + oligarchy + parties, family = poisson, data = coups)
 summary(coupsglm2)
 
@@ -230,26 +224,18 @@ library("scatterplot3d")
 
 data(stormer)
 
-#Scatterplot of Time vs Weight colored by Viscosity
-ggplot(stormer, aes(x = Wt, y = Time, color = factor(Viscosity))) +
-  geom_point() +
-  labs(x = "Weight", y = "Time", title = "Scatterplot of Stormer Data") 
-
+#Scatterplot of Time vs Viscosity colored by Wieght
 ggplot(stormer, aes(x = Viscosity, y = Time, color = factor(Wt))) +
   geom_point() +
   labs(x = "Viscosity", y = "Time", title = "Scatterplot of Stormer Data") 
-
-
-# scatterplot3d(stormer[,1:3], angle = 55,
-#               grid=TRUE, box=FALSE)
-
 ```
 
 
 ```{r, fig.height=2, fig.width=4}
 #Fit linear model for initial parameter estimates
 stormer$wT <- stormer$Wt * stormer$Time
-init_model <- lm(wT ~ Viscosity + Time, data = stormer)
+# Exclude intercept
+init_model <- lm(wT ~ 0 + Viscosity + Time, data = stormer)
 
 theta1_init <- coef(init_model)[["Viscosity"]]
 theta2_init <- coef(init_model)[["Time"]]
@@ -270,26 +256,8 @@ sigma2_hat <- summary(nls_model)$sigma^2
 print(sigma2_hat)
 ```
 
-```{r, fig.height=2, fig.width=4}
-#Generate predicted values for visualization
-pred_grid <- expand.grid(
-  Wt = seq(min(stormer$Wt), max(stormer$Wt), length.out = 100),
-  Viscosity = unique(stormer$Viscosity)
-)
 
-pred_grid$Predicted <- (theta_hat["theta1"] * pred_grid$Viscosity) / 
-  (pred_grid$Wt - theta_hat["theta2"])
-
-
-ggplot(stormer, aes(x = Wt, y = Time, color = factor(Viscosity))) +
-  geom_point() +
-  geom_line(data = pred_grid, 
-    aes(y = Predicted, color = factor(Viscosity)), linewidth = 0.8) +
-  labs(x = "Weight", y = "Time", title = "Scatterplot of Stormer Data") 
-```
-
-
-```{r, fig.height=2, fig.width=4}
+```{r, fig.height=6, fig.width=6}
 #Generate predicted values for visualization
 pred_grid <- expand.grid(
 #   Wt = seq(min(stormer$Wt), max(stormer$Wt), length.out = 5),
@@ -307,14 +275,13 @@ ggplot(stormer, aes(x = Viscosity, y = Time, color = factor(Wt))) +
     aes(y = Predicted, color = factor(Wt)), linewidth = 0.8) +
   labs(x = "Weight", y = "Time", title = "Scatterplot of Stormer Data") 
 ```
+As we can see from the plot of the fitted model to the scatterplot, the model fits the scatterplot of data very well.
 
 b)
 ```{r}
-theta1 <- 25
 summary_nls <- summary(nls_model)
 
 print(summary_nls)
-print(summary_nls$df)
 cov.est = vcov(nls_model)
 
 # Get theta1 estimate and standard error
@@ -325,19 +292,43 @@ theta1_se <- summary_nls$coefficients["theta1", "Std. Error"]
 df <- summary_nls$df[2]
 
 # Compute 95% confidence interval for theta1
-#???????????????????by CI???
 lb = theta1_est - qt(0.975, df) * sqrt(cov.est[1,1])
 ub = theta1_est + qt(0.975, df) * sqrt(cov.est[1,1])
-print(lb)
-print(ub)
+cat("lb for theta1 =", lb, "\n")
+cat("ub for theta1 =", ub, "\n")
 ```
+the CI of theta1 is between 27.4973 and 31.30521, so 25 is not in the CI of theta1, therefore we reject H0, there is not enought evidence to say theta1 = 25.
+
 
 c)
- ```{r}
-#comput by hand????????
-confint(nls_model, level = 0.92, method = "asymptotic")
+```{r}
+cov.est = vcov(nls_model)
+
+# Get theta1 estimate and standard error
+theta1_est <- coef(nls_model)["theta1"]
+theta1_se <- summary_nls$coefficients["theta1", "Std. Error"]
+
+theta2_est <- coef(nls_model)["theta2"]
+theta2_se <- summary_nls$coefficients["theta2", "Std. Error"]
+
+# Residual degrees of freedom (n - p)
+df <- summary_nls$df[2]
+
+# Compute 95% confidence interval for theta1
+lb_theta1 = theta1_est - qt(0.96, df) * sqrt(cov.est[1,1])
+ub_theta1 = theta1_est + qt(0.96, df) * sqrt(cov.est[1,1])
+
+lb_theta2 = theta2_est - qt(0.96, df) * sqrt(cov.est[2,2])
+ub_theta2 = theta2_est + qt(0.96, df) * sqrt(cov.est[2,2])
+
+cat("lb for theta1 =", lb_theta1, "\n")
+cat("ub for theta1 =", ub_theta1, "\n")
+
+cat("lb for theta2 =", lb_theta2, "\n")
+cat("ub for theta2 =", ub_theta2, "\n")
 ```
- 
+So the CI of theta1 is between 27.71699 and 31.08552, and the CI of theta2 is between 0.9939465 and 3.442602.
+
 d)
 ```{r}
 # Extract parameter estimates and variance-covariance matrix
@@ -378,14 +369,14 @@ ggplot(predictions, aes(x = v, y = T_hat)) +
   )
 ```
 
-```{r}
+```{r, fig.height=5, fig.width=5}
 ## Validity of model assumptions
 # residuals against the fitted values
 plot(fitted(nls_model), resid(nls_model));
 # qq-plot to check normality although normality is not required for nonlin models
 qqnorm(resid(nls_model)); qqline(resid(nls_model),col="red") 
-hist(resid(nls_model))  
 ```
+The norm qq-plot of the residuals indicates that the assumption of normality for the errors appear to be skewed. The plot of the residuals against the fitted values indicates that there is clearly a pattern and the assumption of constant error variance may not be valid.
 
 
 e)
@@ -394,16 +385,13 @@ form2 = as.formula(Time ~ (25 * Viscosity) / (Wt - theta2))
 nls_model2 <- nls(
   form2,
   data = stormer,
-  ###???redo theta2_init?
   start = list(theta2 = theta2_init)
 )
 nls_model2
 anova(nls_model2, nls_model) # conclusion: reduced model is not adequate
 ```
 
-```{r}
-
-```
+As we can see, the p value is significatly smaller than 0.05, so we reject H0 and retain the full model. The smaller model with thata1 = 25 is not adequate.
  
  
  
